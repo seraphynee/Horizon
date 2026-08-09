@@ -25,6 +25,20 @@ jobs:
         run: uv sync
       - name: Prepare GitHub Actions config
         run: cp data/config.github.json data/config.json
+      - name: Restore processed release state
+        run: |
+          mkdir -p data
+          if git fetch origin gh-pages --depth=1; then
+            if git show origin/gh-pages:horizon-state/processed_releases.json > data/processed_releases.json 2>/dev/null; then
+              echo "Restored processed release state from gh-pages."
+            else
+              printf '%s\n' '{"version":1,"github_release_ids":[]}' > data/processed_releases.json
+              echo "No prior processed release state found; starting empty."
+            fi
+          else
+            printf '%s\n' '{"version":1,"github_release_ids":[]}' > data/processed_releases.json
+            echo "gh-pages is unavailable; starting empty release state."
+          fi
       - name: Run Horizon
         env:
           # Map secrets to environment variables expected by config.json
@@ -36,7 +50,11 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           HORIZON_WEBHOOK_URL: ${{ secrets.HORIZON_WEBHOOK_URL }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-        run: uv run horizon --hours 24
+        run: uv run horizon --hours 48
+      - name: Include processed release state in Pages output
+        run: |
+          mkdir -p docs/horizon-state
+          cp data/processed_releases.json docs/horizon-state/processed_releases.json
       - name: Set current date as environment variable
         run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - name: Deploy to GitHub Pages

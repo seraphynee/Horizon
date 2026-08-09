@@ -37,6 +37,36 @@
       },
       {
         "type": "repo_releases",
+        "owner": "zed-industries",
+        "repo": "zed",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "neovim",
+        "repo": "neovim",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "modem-dev",
+        "repo": "hunk",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "jj-vcs",
+        "repo": "jj",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "idursun",
+        "repo": "jjui",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
         "owner": "ogulcancelik",
         "repo": "herdr",
         "enabled": true
@@ -45,6 +75,30 @@
         "type": "repo_releases",
         "owner": "jesseduffield",
         "repo": "lazygit",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "anomalyco",
+        "repo": "opencode",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "openai",
+        "repo": "codex",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "earendil-works",
+        "repo": "pi",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "xai-org",
+        "repo": "grok-build",
         "enabled": true
       },
       {

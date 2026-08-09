@@ -9,7 +9,7 @@ from urllib.parse import unquote_plus, urlsplit
 import httpx
 from rich.console import Console
 
-from .models import Config, ContentItem
+from .models import Config, ContentItem, SourceType
 from .storage.manager import StorageManager, safe_output_path
 from .services.email import EmailManager
 from .services.webhook import WebhookNotifier
@@ -181,6 +181,12 @@ class HorizonOrchestrator:
             else None
         )
         self.last_fetch_report: Optional[FetchReport] = None
+        self.processed_release_ids = (
+            storage.load_processed_release_ids()
+            if hasattr(storage, "load_processed_release_ids")
+            else set()
+        )
+        self.pending_release_ids: set[str] = set()
 
     async def run(self, force_hours: int = None) -> None:
         """Execute the complete workflow.
@@ -207,6 +213,13 @@ class HorizonOrchestrator:
 
             # 2. Fetch content from all sources
             all_items = await self.fetch_all_sources(since)
+            fetched_count = len(all_items)
+            all_items = self._filter_processed_releases(all_items)
+            skipped_count = fetched_count - len(all_items)
+            if skipped_count:
+                self.console.print(
+                    f"♻️ Skipped {skipped_count} previously processed GitHub release(s)\n"
+                )
             self.console.print(f"📥 Fetched {len(all_items)} items from all sources\n")
 
             if self.last_fetch_report and self.last_fetch_report.all_failed:
@@ -316,6 +329,8 @@ class HorizonOrchestrator:
                         summarizer=summarizer,
                     )
 
+            self._save_processed_release_state()
+
             self.console.print("[bold green]✅ Horizon completed successfully![/bold green]")
             usage = get_usage_snapshot()
             if usage.total_tokens > 0:
@@ -351,6 +366,34 @@ class HorizonOrchestrator:
             hours = self.config.filtering.time_window_hours
             since = datetime.now(timezone.utc) - timedelta(hours=hours)
         return since
+
+    def _filter_processed_releases(self, items: List[ContentItem]) -> List[ContentItem]:
+        """Drop GitHub releases already completed by an earlier successful run."""
+        processed_ids = getattr(self, "processed_release_ids", set())
+        self.pending_release_ids = {
+            item.id
+            for item in items
+            if item.source_type == SourceType.GITHUB
+            and item.id.startswith("github:release:")
+            and item.id not in processed_ids
+        }
+        return [
+            item
+            for item in items
+            if not (
+                item.source_type == SourceType.GITHUB
+                and item.id.startswith("github:release:")
+                and item.id in processed_ids
+            )
+        ]
+
+    def _save_processed_release_state(self) -> None:
+        """Persist newly fetched GitHub releases after a successful run."""
+        if not self.pending_release_ids or not hasattr(self.storage, "save_processed_release_ids"):
+            return
+
+        self.processed_release_ids.update(self.pending_release_ids)
+        self.storage.save_processed_release_ids(self.processed_release_ids)
 
     async def fetch_all_sources(self, since: datetime) -> List[ContentItem]:
         """Fetch content from all configured sources.

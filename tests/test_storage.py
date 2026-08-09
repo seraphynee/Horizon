@@ -186,3 +186,25 @@ def test_save_subscribers_replace_failure_preserves_destination(tmp_path, monkey
 
     assert subscribers_path.read_text(encoding="utf-8") == '["old"]'
     assert list(tmp_path.glob(f".{subscribers_path.name}.*.tmp")) == []
+
+
+def test_processed_release_ids_round_trip(tmp_path):
+    storage = StorageManager(data_dir=str(tmp_path))
+
+    path = storage.save_processed_release_ids({"github:release:2", "github:release:1"})
+
+    assert path == tmp_path / "processed_releases.json"
+    assert storage.load_processed_release_ids() == {
+        "github:release:1",
+        "github:release:2",
+    }
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        "version": 1,
+        "github_release_ids": ["github:release:1", "github:release:2"],
+    }
+
+
+def test_missing_processed_release_state_is_empty(tmp_path):
+    storage = StorageManager(data_dir=str(tmp_path))
+
+    assert storage.load_processed_release_ids() == set()

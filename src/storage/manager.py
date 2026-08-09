@@ -67,6 +67,7 @@ class StorageManager:
         self.data_dir = Path(data_dir)
         self.config_path = self.data_dir / "config.json"
         self.summaries_dir = self.data_dir / "summaries"
+        self.processed_releases_path = self.data_dir / "processed_releases.json"
 
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.summaries_dir.mkdir(parents=True, exist_ok=True)
@@ -126,6 +127,44 @@ class StorageManager:
         _atomic_write_text(filepath, markdown)
 
         return filepath
+
+    def load_processed_release_ids(self) -> set[str]:
+        """Load GitHub release IDs that were completed by a prior run."""
+        if not self.processed_releases_path.exists():
+            return set()
+
+        try:
+            with open(self.processed_releases_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ConfigError(
+                f"Invalid JSON in processed release state: {self.processed_releases_path}\n"
+                f"Error: {e}"
+            ) from e
+
+        if not isinstance(data, dict) or data.get("version") != 1:
+            raise ConfigError(
+                f"Unsupported processed release state: {self.processed_releases_path}"
+            )
+        release_ids = data.get("github_release_ids")
+        if not isinstance(release_ids, list) or not all(isinstance(value, str) for value in release_ids):
+            raise ConfigError(
+                f"Invalid GitHub release IDs in processed release state: {self.processed_releases_path}"
+            )
+
+        return set(release_ids)
+
+    def save_processed_release_ids(self, release_ids: set[str]) -> Path:
+        """Persist completed GitHub release IDs atomically."""
+        payload = {
+            "version": 1,
+            "github_release_ids": sorted(release_ids),
+        }
+        _atomic_write_text(
+            self.processed_releases_path,
+            f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n",
+        )
+        return self.processed_releases_path
 
     def load_subscribers(self) -> list:
         """Loads the list of email subscribers."""
